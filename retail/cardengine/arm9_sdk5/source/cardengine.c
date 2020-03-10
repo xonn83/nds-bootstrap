@@ -64,14 +64,6 @@ static aFile* romFile = (aFile*)ROM_FILE_LOCATION_MAINMEM;
 //static aFile* savFile = (aFile*)SAV_FILE_LOCATION_MAINMEM;
 
 bool sdRead = false;
-#else
-static u32 cacheDescriptor[dev_CACHE_SLOTS_16KB_SDK5] = {0xFFFFFFFF};
-static u32 cacheCounter[dev_CACHE_SLOTS_16KB_SDK5];
-static u32 accessCounter = 0;
-
-static u32 readSize = _16KB_READ_SIZE;
-static u32 cacheAddress = retail_CACHE_ADRESS_START_SDK5;
-static u16 cacheSlots = retail_CACHE_SLOTS_16KB_SDK5;
 #endif
 static u32 overlaysSize = 0;
 
@@ -152,42 +144,6 @@ static void enableIPC_SYNC(void) {
 }
 
 
-#ifndef DLDI
-static int allocateCacheSlot(void) {
-	int slot = 0;
-	u32 lowerCounter = accessCounter;
-	for (int i = 0; i < cacheSlots; i++) {
-		if (cacheCounter[i] <= lowerCounter) {
-			lowerCounter = cacheCounter[i];
-			slot = i;
-			if (!lowerCounter) {
-				break;
-			}
-		}
-	}
-	return slot;
-}
-
-static int getSlotForSector(u32 sector) {
-	for (int i = 0; i < cacheSlots; i++) {
-		if (cacheDescriptor[i] == sector) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-static vu8* getCacheAddress(int slot) {
-	//return (vu32*)(cacheAddress + slot*readSize);
-	return (vu8*)(cacheAddress + slot*readSize);
-}
-
-static void updateDescriptor(int slot, u32 sector) {
-	cacheDescriptor[slot] = sector;
-	cacheCounter[slot] = accessCounter;
-}
-#endif
-
 void user_exception(void);
 
 //---------------------------------------------------------------------------------
@@ -261,7 +217,7 @@ void continueCardReadDmaArm9() {
         dst = (u8*)(dmaParams[4]);
         len = dmaParams[5]; 
 
-        u32 sector = (src/readSize)*readSize;
+        /*u32 sector = (src/readSize)*readSize;
 
         if (len > 0) {
 			accessCounter++;  
@@ -314,36 +270,35 @@ void continueCardReadDmaArm9() {
                 IPC_SendSync(0x3);        
             }  
         }
-        if (len==0) {
+        if (len==0) {*/
           //disableIrqMask(IRQ_DMA0 << dma);
           //resetRequestIrqMask(IRQ_DMA0 << dma);
           //disableDMA(dma); 
           endCardReadDma();
-       } 
+       //} 
     }
 }
 
-void continueCardReadDmaArm7() {
-        
+/*void continueCardReadDmaArm7() {
     if(dmaReadOnArm7) {
         if(!checkArm7()) return;
-        
+
         dmaReadOnArm7 = false;
-        
+
         vu32* volatile cardStruct = ce9->cardStruct0;
         u32 commandPool=0x025AAB08;
-        
+
         u32 src = dmaParams[3];
     	u8* dst = (u8*)dmaParams[4];
-    	u32 len = dmaParams[5];   
-        
+    	u32 len = dmaParams[5];*/
+
 		/*u32 page = (src / 512) * 512;
 
 		if (page == src && len > readSize && (u32)dst < 0x02700000 && (u32)dst > 0x02000000 && (u32)dst % 4 == 0) {
 			sharedAddr[3] = 0;
 			endCardReadDma();
 		} else {*/
-			u32 sector = (src/readSize)*readSize;
+			/*u32 sector = (src/readSize)*readSize;
 
 			u32 len2 = len;
 			if ((src - sector) + len2 > readSize) {
@@ -367,7 +322,7 @@ void continueCardReadDmaArm7() {
 			IPC_SendSync(0x3);
 		//}
     }
-}
+}*/
 #endif
 
 void cardSetDma (u32 * params) {
@@ -382,17 +337,13 @@ void cardSetDma (u32 * params) {
 	u8* dst = (u8*)dmaParams[4];
 	u32 len = dmaParams[5];
 
-	#ifdef DLDI
-	while (sharedAddr[3]==0x52414D44);	// Wait during a RAM dump
-	fileRead((char*)dst, *romFile, src, len, 0);
-	endCardReadDma();
-	#else
     u32 commandRead=0x025FFB0A;
     u32 commandPool=0x025AAB08;
-	u32 sector = (src/readSize)*readSize;
-	u32 page = (src / 512) * 512;
+	//u32 sector = (src/readSize)*readSize;
+	//u32 page = (src / 512) * 512;
 
 	if (ce9->ROMinRAM) {
+		#ifndef DLDI
   		u32 len2 = len;
   		if (len2 > 512) {
   			len2 -= src % 4;
@@ -408,9 +359,14 @@ void cardSetDma (u32 * params) {
         IPC_SendSync(0x3);        
 
 		return;
+		#endif
+	} else {
+		while (sharedAddr[3]==0x52414D44);	// Wait during a RAM dump
+		fileRead((char*)dst, *romFile, src, len, 0);
+		endCardReadDma();
 	}
 
-	accessCounter++;  
+	//accessCounter++;  
   
 	/*if (page == src && len > readSize && (u32)dst < 0x02700000 && (u32)dst > 0x02000000 && (u32)dst % 4 == 0) {
 		// Read directly at ARM7 level
@@ -424,7 +380,7 @@ void cardSetDma (u32 * params) {
 
 		dmaReadOnArm7 = true;
 	} else {*/
-		// Read via the main RAM cache
+		/* // Read via the main RAM cache
 		int slot = getSlotForSector(sector);
 		vu8* buffer = getCacheAddress(slot);
 		// Read max CACHE_READ_SIZE via the main RAM cache
@@ -468,8 +424,7 @@ void cardSetDma (u32 * params) {
 			sharedAddr[3] = commandPool;
 			IPC_SendSync(0x3);
 		}
-	//}
-	#endif
+	//}*/
 }
 
 static void clearIcache (void) {
@@ -644,8 +599,6 @@ int cardRead(u32 dma, u8* dst, u32 src, u32 len) {
 		}
 		setExceptionHandler2();
 		const char* romTid = getRomTid(ndsHeader);
-		#ifdef DLDI
-
 		if ((strncmp(romTid, "BKW", 3) == 0)
 		|| (strncmp(romTid, "VKG", 3) == 0)) {
 			romLocation = CACHE_ADRESS_START_low;
@@ -658,38 +611,11 @@ int cardRead(u32 dma, u8* dst, u32 src, u32 len) {
 		if (ce9->consoleModel>0 ? overlaysSize<=0x1000000 : overlaysSize<=0x700000) {} else {
 			loadOverlaysFromRam = false;
 		}
-		#else
-		if (ce9->consoleModel > 0) {
-			romLocation = ROM_SDK5_LOCATION;
-			cacheAddress = dev_CACHE_ADRESS_START_SDK5;
-			cacheSlots = dev_CACHE_SLOTS_16KB_SDK5;
-		} else if ((strncmp(romTid, "BKW", 3) == 0)
-				|| (strncmp(romTid, "VKG", 3) == 0)) {
-			romLocation = CACHE_ADRESS_START_low;
-			cacheAddress = CACHE_ADRESS_START_low;
-			cacheSlots = CACHE_SLOTS_16KB_low;
-		}
 
-		if (!ce9->ROMinRAM) {
-			for (int i = ndsHeader->arm9romOffset+ndsHeader->arm9binarySize; i <= ndsHeader->arm7romOffset; i++) {
-				overlaysSize = i;
-			}
-
-			if (ce9->consoleModel>0 ? overlaysSize<=0x1000000 : overlaysSize<=0x700000) {
-				for (int i = 0; i < overlaysSize; i += readSize) {
-					cacheAddress += readSize;
-					cacheSlots--;
-				}
-			} else {
-				loadOverlaysFromRam = false;
-			}
-		}
-
-		if (ce9->enableExceptionHandler) {
+		//if (ce9->enableExceptionHandler) {
 			//exceptionStack = (u32)EXCEPTION_STACK_LOCATION;
 			//setExceptionHandler(user_exception);
-		}
-		#endif
+		//}
 		flagsSet = true;
 	}
 
@@ -744,7 +670,7 @@ void myIrqHandlerIPC(void) {
 #ifndef DLDI
 	if (sharedAddr[4] == 0x025AAB08) {
 		if(ce9->patches->cardEndReadDmaRef || ce9->thumbPatches->cardEndReadDmaRef) { // new dma method  
-			continueCardReadDmaArm7();
+			//continueCardReadDmaArm7();
 			continueCardReadDmaArm9();
 		}
 		sharedAddr[4] = 0;
