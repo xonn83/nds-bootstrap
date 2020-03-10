@@ -865,10 +865,10 @@ int arm7_main(void) {
 	} else {
 		tonccpy((char*)(dsiSD ? ROM_FILE_LOCATION : ROM_FILE_LOCATION_ALT), (char*)0x27C0000, sizeof(aFile));
 	}
-	if (gameOnFlashcard) {
+	//if (gameOnFlashcard) {
 		romFile->fatTableCache = (u32*)0x2700000;	// Change fatTableCache addr for ce9 usage
 		tonccpy((char*)ROM_FILE_LOCATION_MAINMEM, (char*)(dsiSD ? ROM_FILE_LOCATION : ROM_FILE_LOCATION_ALT), sizeof(aFile));
-	}
+	//}
 
 	sdRead = (saveOnFlashcard ? false : dsiSD);
 
@@ -909,10 +909,10 @@ int arm7_main(void) {
 	} else {
 		fileRead((char*)0x3700000, fatTableFile, 0x200, 0x80000, -1);
 	}
-	if (gameOnFlashcard) {
+	//if (gameOnFlashcard) {
 		tonccpy((char*)0x2700000, (char*)0x3700000, 0x7FF80);
 		romFile->fatTableCache = (u32*)0x3700000;	// Revert back for ce7 usage
-	}
+	//}
 
 	toncset((u32*)0x027C0000, 0, 0x400);
 
@@ -1067,20 +1067,20 @@ int arm7_main(void) {
 			)
 			{
 				ce9Location = CARDENGINE_ARM9_CACHED_LOCATION;
-				tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x1800);
-				relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x1800);
+				tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x3000);
+				relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x3000);
 			} else
 			ce9Location = (u32)patchHeapPointer(moduleParams, ndsHeader);
 			if(ce9Location) {
-					tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x1800);
-					relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x1800);
+					tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x3000);
+					relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x3000);
 			} else {         
 				ce9Location = CARDENGINE_ARM9_LOCATION;
-				tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x1800);
+				tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x3000);
 			}
 		} else {
 			ce9Location = CARDENGINE_ARM9_LOCATION;
-			tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x1800);
+			tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x3000);
 		}
 
 		patchBinary(ndsHeader);

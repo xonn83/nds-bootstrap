@@ -34,9 +34,11 @@
 #include "cardengine.h"
 #include "locations.h"
 #include "cardengine_header_arm9.h"
-#ifdef DLDI
 #include "my_fat.h"
+#ifdef DLDI
 #include "card_dldionly.h"
+#else
+#include "card_sdonly.h"
 #endif
 
 #define _16KB_READ_SIZE  0x4000
@@ -67,8 +69,8 @@ vu32* volatile sharedAddr = (vu32*)CARDENGINE_SHARED_ADDRESS;
 static tNDSHeader* ndsHeader = (tNDSHeader*)NDS_HEADER;
 
 static u32 romLocation = ROM_LOCATION;
-#ifdef DLDI
 static aFile* romFile = (aFile*)ROM_FILE_LOCATION_MAINMEM;
+#ifdef DLDI
 static aFile* savFile = (aFile*)SAV_FILE_LOCATION_MAINMEM;
 
 bool sdRead = false;
@@ -507,14 +509,14 @@ void cardSetDma(void) {
 }
 
 static inline int cardReadNormal(vu32* volatile cardStruct, u32* cacheStruct, u8* dst, u32 src, u32 len, u32 page) {
-#ifdef DLDI
+//#ifdef DLDI
 	while (sharedAddr[3]==0x52414D44);	// Wait during a RAM dump
 	fileRead((char*)dst, *romFile, src, len, 0);
-#else
+/*#else
 	u32 commandRead;
 	u32 sector = (src/readSize)*readSize;
 
-	accessCounter++;
+	accessCounter++;*/
 
 	/*if (page == src && len > readSize && (u32)dst < 0x02700000 && (u32)dst > 0x02000000 && (u32)dst % 4 == 0) {
 		// Read directly at ARM7 level
@@ -529,27 +531,19 @@ static inline int cardReadNormal(vu32* volatile cardStruct, u32* cacheStruct, u8
 
 	} else {*/
 		// Read via the main RAM cache
-		while(len > 0) {
+		/*while(len > 0) {
 			int slot = getSlotForSector(sector);
 			vu8* buffer = getCacheAddress(slot);
 			// Read max CACHE_READ_SIZE via the main RAM cache
 			if (slot == -1) {
 				// Send a command to the ARM7 to fill the RAM cache
-				commandRead = (dmaLed ? 0x025FFB0A : 0x025FFB08);
+				//commandRead = (dmaLed ? 0x025FFB0A : 0x025FFB08);
 
 				slot = allocateCacheSlot();
 
 				buffer = getCacheAddress(slot);
 
-				// Write the command
-				sharedAddr[0] = (vu32)buffer;
-				sharedAddr[1] = readSize;
-				sharedAddr[2] = sector;
-				sharedAddr[3] = commandRead;
-
-				//REG_IME = 0;
-				waitForArm7();
-				//REG_IME = 1;
+				fileRead((char*)buffer, *romFile, sector, readSize, 0);
 			}
 
 			updateDescriptor(slot, sector);	
@@ -559,13 +553,6 @@ static inline int cardReadNormal(vu32* volatile cardStruct, u32* cacheStruct, u8
 				len2 = sector - src + readSize;
 			}
 
-            /*if (isDma) {
-                // Copy via dma
-  				dmaCopyWordsAsynchIrq(dma, (u8*)buffer+(src-sector), dst, len2);
-                while (dmaBusy(dma)) {
-                    sleep(1);
-                }        
-            } else {*/
     			#ifdef DEBUG
     			// Send a log command for debug purpose
     			// -------------------------------------
@@ -577,12 +564,12 @@ static inline int cardReadNormal(vu32* volatile cardStruct, u32* cacheStruct, u8
     			sharedAddr[3] = commandRead;
     
     			waitForArm7();
-    			// -------------------------------------*/
+    			// -------------------------------------
     			#endif
     
     			// Copy directly
     			tonccpy(dst, (u8*)buffer+(src-sector), len2);
-            //}
+
     		// Update cardi common
     		cardStruct[0] = src + len2;
     		cardStruct[1] = (vu32)(dst + len2);
@@ -598,7 +585,7 @@ static inline int cardReadNormal(vu32* volatile cardStruct, u32* cacheStruct, u8
 			}
 		}
 	//}
-#endif
+#endif*/
 
 	if(strncmp(getRomTid(ndsHeader), "CLJ", 3) == 0){
 		cacheFlush(); //workaround for some weird data-cache issue in Bowser's Inside Story.
@@ -730,13 +717,13 @@ int cardReadPDash(u32* cacheStruct, u32 src, u8* dst, u32 len) {
 int cardRead(u32* cacheStruct, u8* dst0, u32 src0, u32 len0) {
 	//nocashMessage("\narm9 cardRead\n");
 	if (!flagsSet) {
-		#ifdef DLDI
 		if (!FAT_InitFiles(false, 0)) {
 			//nocashMessage("!FAT_InitFiles");
 			//return -1;
 		}
-
 		const char* romTid = getRomTid(ndsHeader);
+
+		#ifdef DLDI
 		if (strncmp(romTid, "UBR", 3) == 0) {
 			loadOverlaysFromRam = false;
 		} else {
@@ -758,7 +745,6 @@ int cardRead(u32* cacheStruct, u8* dst0, u32 src0, u32 len0) {
 			debug8mbMpuFix();
 		}
 		#else
-		const char* romTid = getRomTid(ndsHeader);
 		if (!ce9->ROMinRAM && strncmp(romTid, "UBR", 3) == 0) {
 			loadOverlaysFromRam = false;
 			cacheAddress = CACHE_ADRESS_START_low;

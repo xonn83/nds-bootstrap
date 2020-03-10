@@ -33,9 +33,11 @@
 #include "cardengine.h"
 #include "locations.h"
 #include "cardengine_header_arm9.h"
-#ifdef DLDI
 #include "my_fat.h"
+#ifdef DLDI
 #include "card_dldionly.h"
+#else
+#include "card_sdonly.h"
 #endif
 
 #define _16KB_READ_SIZE  0x4000
@@ -57,8 +59,8 @@ vu32* volatile sharedAddr = (vu32*)CARDENGINE_SHARED_ADDRESS;
 static tNDSHeader* ndsHeader = (tNDSHeader*)NDS_HEADER_SDK5;
 
 static u32 romLocation = retail_CACHE_ADRESS_START_SDK5;
-#ifdef DLDI
 static aFile* romFile = (aFile*)ROM_FILE_LOCATION_MAINMEM;
+#ifdef DLDI
 //static aFile* savFile = (aFile*)SAV_FILE_LOCATION_MAINMEM;
 
 bool sdRead = false;
@@ -480,14 +482,14 @@ static void clearIcache (void) {
 }
 
 static inline int cardReadNormal(u8* dst, u32 src, u32 len, u32 page) {
-#ifdef DLDI
+//#ifdef DLDI
 	while (sharedAddr[3]==0x52414D44);	// Wait during a RAM dump
 	fileRead((char*)dst, *romFile, src, len, 0);
-#else
+/*#else
 	u32 commandRead;
 	u32 sector = (src/readSize)*readSize;
 
-	accessCounter++;
+	accessCounter++;*/
 
 	/*if (page == src && len > readSize && (u32)dst < 0x02700000 && (u32)dst > 0x02000000 && (u32)dst % 4 == 0) {
 		// Read directly at ARM7 level
@@ -502,7 +504,7 @@ static inline int cardReadNormal(u8* dst, u32 src, u32 len, u32 page) {
 
 	} else {*/
 		// Read via the main RAM cache
-		while(len > 0) {
+		/*while(len > 0) {
 			int slot = getSlotForSector(sector);
 			vu8* buffer = getCacheAddress(slot);
 			// Read max CACHE_READ_SIZE via the main RAM cache
@@ -541,19 +543,11 @@ static inline int cardReadNormal(u8* dst, u32 src, u32 len, u32 page) {
 			sharedAddr[3] = commandRead;
 
 			waitForArm7();
-			// -------------------------------------*/
+			// -------------------------------------
 			#endif
 
-            /*if (isDma) {
-                // Copy via dma
-  				dmaCopyWordsAsynch(dma, (u8*)buffer+(src-sector), dst, len2);
-                while (dmaBusy(dma)) {
-                    sleep(1);
-                }
-            } else {*/
-    			// Copy directly
-    			tonccpy(dst, (u8*)buffer+(src-sector), len2);
-            //}
+    		// Copy directly
+    		tonccpy(dst, (u8*)buffer+(src-sector), len2);
 
 			len -= len2;
 			if (len > 0) {
@@ -564,7 +558,7 @@ static inline int cardReadNormal(u8* dst, u32 src, u32 len, u32 page) {
 			}
 		}
 	//}
-#endif
+#endif*/
 	
 	return 0;
 }
@@ -644,13 +638,13 @@ u32 cardReadDma(u32 dma, u8* dst, u32 src, u32 len) {
 int cardRead(u32 dma, u8* dst, u32 src, u32 len) {
 	//nocashMessage("\narm9 cardRead\n");
 	if (!flagsSet) {
-		setExceptionHandler2();
-		const char* romTid = getRomTid(ndsHeader);
-		#ifdef DLDI
 		if (!FAT_InitFiles(false, 0)) {
 			//nocashMessage("!FAT_InitFiles");
 			//return -1;
 		}
+		setExceptionHandler2();
+		const char* romTid = getRomTid(ndsHeader);
+		#ifdef DLDI
 
 		if ((strncmp(romTid, "BKW", 3) == 0)
 		|| (strncmp(romTid, "VKG", 3) == 0)) {

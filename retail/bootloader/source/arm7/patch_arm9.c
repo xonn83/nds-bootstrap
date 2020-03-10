@@ -526,15 +526,6 @@ static bool a9PatchCardIrqEnable(cardengineArm9* ce9, const tNDSHeader* ndsHeade
 }
 
 static void patchMpu(const tNDSHeader* ndsHeader, const module_params_t* moduleParams, u32 patchMpuRegion, u32 patchMpuSize) {
-	extern u32 gameOnFlashcard;
-    const char* romTid = getRomTid(ndsHeader);
-
-	if (moduleParams->sdk_version > 0x5000000 && !gameOnFlashcard
-	&& strncmp(romTid, "KPF", 3) != 0	// Pop Island: Paperfield
-	) {
-		return;
-	}
-
 	if (patchOffsetCache.patchMpuRegion != patchMpuRegion) {
 		patchOffsetCache.patchMpuRegion = 0;
 		patchOffsetCache.mpuStartOffset = 0;
@@ -721,7 +712,7 @@ u32* patchHeapPointer(const module_params_t* moduleParams, const tNDSHeader* nds
 	dbg_hexa((u32)oldheapPointer);
     dbg_printf("\n\n");
 
-	*heapPointer += (isSdk5(moduleParams) ? 0x3000 : 0x1800); // shrink heap by 6 KB (or for SDK5, 12 KB)
+	*heapPointer += 0x3000; // 12 KB
 
     dbg_printf("new heap pointer: ");
 	dbg_hexa((u32)*heapPointer);

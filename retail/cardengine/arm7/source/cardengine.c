@@ -587,6 +587,22 @@ static void runCardEngineCheck(void) {
   			i2cWriteRegister(0x4A, 0x11, 0x01);
   		}*/
 
+    		if (sharedAddr[4] == (vu32)0x53445231) {
+				int res;
+				cardReadLED(true);
+    			res = my_sdmmc_sdcard_readsector(sharedAddr[0], (u8*)sharedAddr[1], sharedAddr[2], sharedAddr[3]);
+				cardReadLED(false);
+				sharedAddr[4] = (vu32)res;
+			}
+
+    		if (sharedAddr[4] == (vu32)0x53445244) {
+				int res;
+				cardReadLED(true);
+    			res = my_sdmmc_sdcard_readsectors(sharedAddr[0], sharedAddr[1], (u8*)sharedAddr[2], sharedAddr[3]);
+				cardReadLED(false);
+				sharedAddr[4] = (vu32)res;
+			}
+
     		if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x026FF800) {
 				sdRead = true;
     			log_arm9();
