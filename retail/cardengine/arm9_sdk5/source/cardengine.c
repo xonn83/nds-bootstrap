@@ -595,7 +595,9 @@ int cardRead(u32 dma, u8* dst, u32 src, u32 len) {
 	if (!flagsSet) {
 		if (!FAT_InitFiles(false, 0)) {
 			//nocashMessage("!FAT_InitFiles");
-			//return -1;
+			#ifndef DLDI
+			while (1);
+			#endif
 		}
 		setExceptionHandler2();
 		const char* romTid = getRomTid(ndsHeader);
