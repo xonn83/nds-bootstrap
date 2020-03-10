@@ -949,10 +949,6 @@ int arm7_main(void) {
 		dsiModeConfirmed = dsiMode && ROMsupportsDsiMode(&dsiHeaderTemp.ndshdr);
 	}
 	if (dsiModeConfirmed) {
-		if (consoleModel == 0 && !isDSiWare && !gameOnFlashcard) {
-			dbg_printf("Cannot use DSi mode on DSi SD\n");
-			errorOutput();
-		}
 		loadIBinary_ARM7(&dsiHeaderTemp, *romFile);
 	}
 	toncset((u32*)0x02800000, 0, 0x500000);	// clear buffered binaries
