@@ -26,8 +26,6 @@
 #include "my_disc_io.h"
 #include "my_sdmmc.h"
 
-extern bool sdRead;
-
 // Export interface
 extern NEW_DISC_INTERFACE __myio_dsisd;
 

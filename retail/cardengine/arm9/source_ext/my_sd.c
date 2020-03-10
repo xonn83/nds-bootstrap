@@ -1,5 +1,9 @@
+#include <nds/ipc.h>
+
 #include "my_disc_io.h"
 #include "my_sdmmc.h"
+
+extern vu32* volatile sharedAddr;
 
 /*-----------------------------------------------------------------
 startUp
@@ -36,7 +40,18 @@ bool my_sdio_ReadSector(sec_t sector, void* buffer, u32 startOffset, u32 endOffs
 	#ifdef DEBUG
 	nocashMessage("readSector internal");
 	#endif
-	return my_sdmmc_sdcard_readsector(sector, buffer, startOffset, endOffset) == 0;
+
+	u32 commandRead = 0x53445231;
+
+	sharedAddr[0] = sector;
+	sharedAddr[1] = (vu32)buffer;
+	sharedAddr[2] = startOffset;
+	sharedAddr[3] = endOffset;
+	sharedAddr[4] = commandRead;
+
+    IPC_SendSync(0x4);
+	while (sharedAddr[4] == commandRead);
+	return sharedAddr[4] == 0;
 }
 
 /*-----------------------------------------------------------------
@@ -50,7 +65,18 @@ bool my_sdio_ReadSectors(sec_t sector, sec_t numSectors, void* buffer, int ndmaS
 	#ifdef DEBUG
 	nocashMessage("readSectors internal");
 	#endif
-	return my_sdmmc_sdcard_readsectors(sector, numSectors, buffer, ndmaSlot) == 0;
+
+	u32 commandRead = 0x53445244;
+
+	sharedAddr[0] = sector;
+	sharedAddr[1] = numSectors;
+	sharedAddr[2] = (vu32)buffer;
+	sharedAddr[3] = ndmaSlot;
+	sharedAddr[4] = commandRead;
+
+    IPC_SendSync(0x4);
+	while (sharedAddr[4] == commandRead);
+	return sharedAddr[4] == 0;
 }
 
 /*-----------------------------------------------------------------
@@ -64,14 +90,14 @@ int my_sdio_ReadSectors_nonblocking(sec_t sector, sec_t numSectors, void* buffer
 	#ifdef DEBUG
 	nocashMessage("my_sdio_ReadSectors_nonblocking");
 	#endif
-	return my_sdmmc_sdcard_readsectors_nonblocking(sector, numSectors, buffer, ndmaSlot);
+	return false;
 }
 
 bool  my_sdio_check_command(int cmd, int ndmaSlot) {
 	#ifdef DEBUG
 	nocashMessage("my_sdio_check_command");
 	#endif
-	return my_sdmmc_sdcard_check_command(cmd, ndmaSlot);
+	return false;
 }
 
 /*-----------------------------------------------------------------
@@ -85,7 +111,7 @@ bool my_sdio_WriteSectors(sec_t sector, sec_t numSectors, const void* buffer, in
 	#ifdef DEBUG
 	nocashMessage("writeSectors internal");
 	#endif
-	return my_sdmmc_sdcard_writesectors(sector, numSectors, buffer, ndmaSlot) == 0;
+	return false;
 }
 
 
@@ -117,7 +143,7 @@ bool my_sdio_Shutdown(void) {
 
 const NEW_DISC_INTERFACE __myio_dsisd = {
 	DEVICE_TYPE_DSI_SD,
-	FEATURE_MEDIUM_CANREAD | FEATURE_MEDIUM_CANWRITE,
+	FEATURE_MEDIUM_CANREAD,
 	(FN_MEDIUM_STARTUP)&my_sdio_Startup,
 	(FN_MEDIUM_ISINSERTED)&my_sdio_IsInserted,
     (FN_MEDIUM_READSECTOR)&my_sdio_ReadSector,
