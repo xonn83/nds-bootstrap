@@ -587,24 +587,6 @@ static void runCardEngineCheck(void) {
   			i2cWriteRegister(0x4A, 0x11, 0x01);
   		}*/
 
-    		if (sharedAddr[4] == (vu32)0x53445231) {
-				int res;
-				cardReadLED(true);
-    			res = my_sdmmc_sdcard_readsector(sharedAddr[0], (u8*)sharedAddr[1], sharedAddr[2], sharedAddr[3]);
-				cardReadLED(false);
-				sharedAddr[4] = (vu32)res;
-				sharedAddr[3] = 0;
-			}
-
-    		if (sharedAddr[4] == (vu32)0x53445244) {
-				int res;
-				cardReadLED(true);
-    			res = my_sdmmc_sdcard_readsectors(sharedAddr[0], sharedAddr[1], (u8*)sharedAddr[2], sharedAddr[3]);
-				cardReadLED(false);
-				sharedAddr[4] = (vu32)res;
-				sharedAddr[3] = 0;
-			}
-
     		if (sharedAddr[3] == (vu32)0x026FF800) {
 				sdRead = true;
     			log_arm9();
@@ -935,6 +917,23 @@ void i2cIRQHandler(void) {
 	}
 }
 
+void sdmmcIRQHandler(void) {
+	switch (sharedAddr[4]) {
+		case 0x53445231:
+			cardReadLED(true);
+    		sharedAddr[4] = my_sdmmc_sdcard_readsector(sharedAddr[0], (u8*)sharedAddr[1], sharedAddr[2], sharedAddr[3]);
+			cardReadLED(false);
+			sharedAddr[3] = 0;
+			break;
+		case 0x53445244:
+			cardReadLED(true);
+    		sharedAddr[4] = my_sdmmc_sdcard_readsectors(sharedAddr[0], sharedAddr[1], (u8*)sharedAddr[2], sharedAddr[3]);
+			cardReadLED(false);
+			sharedAddr[3] = 0;
+			break;
+	}
+}
+
 u32 myIrqEnable(u32 irq) {	
 	int oldIME = enterCriticalSection();	
 	
@@ -947,7 +946,7 @@ u32 myIrqEnable(u32 irq) {
 	REG_IPC_SYNC |= IPC_SYNC_IRQ_ENABLE;
 
 	REG_IE |= irq;
-	REG_AUXIE |= IRQ_I2C;
+	REG_AUXIE = (IRQ_I2C | IRQ_SDMMC);
 	leaveCriticalSection(oldIME);
 	ipcSyncHooked = true;
 	return irq_before;
