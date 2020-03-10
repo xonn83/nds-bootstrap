@@ -536,7 +536,7 @@ static bool resume_cardRead_arm9(void) {
 	nocashMessage("runCardEngineCheckResume");
 	#endif
     
-    if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025AAB08) {
+    if (sharedAddr[3] == (vu32)0x025AAB08) {
         IPC_SendSync(0x7);
     }	
 
@@ -546,7 +546,7 @@ static bool resume_cardRead_arm9(void) {
 		if(readOngoing)
 		{
 			if(resume_cardRead_arm9()) {
-				*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+				sharedAddr[3] = 0;
                 IPC_SendSync(0x8);
 			} 
 		}
@@ -560,7 +560,7 @@ static void runCardEngineCheck(void) {
 	nocashMessage("runCardEngineCheck");
 	#endif	
 
-    if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025AAB08) {
+    if (sharedAddr[3] == (vu32)0x025AAB08) {
 		sharedAddr[4] = 0x025AAB08;
 		IPC_SendSync(0x7);
 	}
@@ -582,7 +582,7 @@ static void runCardEngineCheck(void) {
     
     		//nocashMessage("runCardEngineCheck mutex ok");
     
-  		/*if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x5245424F) {
+  		/*if (sharedAddr[3] == (vu32)0x5245424F) {
   			i2cWriteRegister(0x4A, 0x70, 0x01);
   			i2cWriteRegister(0x4A, 0x11, 0x01);
   		}*/
@@ -593,6 +593,7 @@ static void runCardEngineCheck(void) {
     			res = my_sdmmc_sdcard_readsector(sharedAddr[0], (u8*)sharedAddr[1], sharedAddr[2], sharedAddr[3]);
 				cardReadLED(false);
 				sharedAddr[4] = (vu32)res;
+				sharedAddr[3] = 0;
 			}
 
     		if (sharedAddr[4] == (vu32)0x53445244) {
@@ -601,63 +602,64 @@ static void runCardEngineCheck(void) {
     			res = my_sdmmc_sdcard_readsectors(sharedAddr[0], sharedAddr[1], (u8*)sharedAddr[2], sharedAddr[3]);
 				cardReadLED(false);
 				sharedAddr[4] = (vu32)res;
+				sharedAddr[3] = 0;
 			}
 
-    		if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x026FF800) {
+    		if (sharedAddr[3] == (vu32)0x026FF800) {
 				sdRead = true;
     			log_arm9();
-    			*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+    			sharedAddr[3] = 0;
                 IPC_SendSync(0x8);
     		}
     
     
-          if ((*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFB08) || (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFB0A)) {
+          if ((sharedAddr[3] == (vu32)0x025FFB08) || (sharedAddr[3] == (vu32)0x025FFB0A)) {
 				sdRead = true;
-              dmaLed = (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFB0A);
+              dmaLed = (sharedAddr[3] == (vu32)0x025FFB0A);
               if(start_cardRead_arm9()) {
-                    *(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+                    sharedAddr[3] = 0;
 					sharedAddr[4] = 0x025AAB08;
                     IPC_SendSync(0x8);
               } else {
                     while(!resume_cardRead_arm9()) {} 
-                    *(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+                    sharedAddr[3] = 0;
 					sharedAddr[4] = 0x025AAB08;
                     IPC_SendSync(0x8);
               }
           }
 
 			#ifndef TWLSDK
-            if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFC01) {
+            if (sharedAddr[3] == (vu32)0x025FFC01) {
 				sdRead = true;
-                dmaLed = (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFC01);
+                dmaLed = (sharedAddr[3] == (vu32)0x025FFC01);
     			nandRead();
-    			*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+    			sharedAddr[3] = 0;
     		}
 
-            if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFC02) {
+            if (sharedAddr[3] == (vu32)0x025FFC02) {
 				sdRead = true;
-                dmaLed = (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFC02);
+                dmaLed = (sharedAddr[3] == (vu32)0x025FFC02);
     			nandWrite();
-    			*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+    			sharedAddr[3] = 0;
     		}
 
-            /*if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FBC01) {
+            /*if (sharedAddr[3] == (vu32)0x025FBC01) {
 				sdRead = true;
                 dmaLed = false;
     			slot2Read();
-    			*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+    			sharedAddr[3] = 0;
     			IPC_SendSync(0x8);
     		}*/
 			#endif
     
-    		/*if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x020FF800) {
+    		/*if (sharedAddr[3] == (vu32)0x020FF800) {
     			asyncCardRead_arm9();
-    			*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+    			sharedAddr[3] = 0;
     		}*/
         } else {
             //if(resume_cardRead_arm9()) {
 			    while(!resume_cardRead_arm9()) {} 
-                *(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+                sharedAddr[3] = 0;
 				sharedAddr[4] = 0x025AAB08;
                 IPC_SendSync(0x8);
             //} 
@@ -680,31 +682,31 @@ static void runCardEngineCheck(void) {
   
   		//nocashMessage("runCardEngineCheck mutex ok");
   
-  		if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x026FF800) {
+  		if (sharedAddr[3] == (vu32)0x026FF800) {
   			log_arm9();
-  			*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+  			sharedAddr[3] = 0;
             IPC_SendSync(0x8);
   		}
   
   
-      		if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x025FFB08) {
+      		if (sharedAddr[3] == (vu32)0x025FFB08) {
       			if(start_cardRead_arm9()) {
-                    *(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+                    sharedAddr[3] = 0;
                     IPC_SendSync(0x8);
                 } else {
                     while(!resume_cardRead_arm9()) {} 
-                    *(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+                    sharedAddr[3] = 0;
                     IPC_SendSync(0x8);
                 } 			
       		}
   
-  		//if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x020FF800) {
+  		//if (sharedAddr[3] == (vu32)0x020FF800) {
   		//	asyncCardRead_arm9();
-  		//	*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0;
+  		//	sharedAddr[3] = 0;
   		//}
       } else {
           while(!resume_cardRead_arm9()) {} 
-          *(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) = 0; 
+          sharedAddr[3] = 0; 
           IPC_SendSync(0x8);
       }
   		unlockMutex(&cardEgnineCommandMutex);
@@ -807,7 +809,7 @@ void myIrqHandlerVBlank(void) {
 		ramDumpTimer = 0;
 	}
 
-	if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x52534554) {
+	if (sharedAddr[3] == (vu32)0x52534554) {
 		REG_MASTER_VOLUME = 0;
 		int oldIME = enterCriticalSection();
 		driveInitialize();
