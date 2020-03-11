@@ -593,7 +593,7 @@ u32 cardReadDma(u32 dma, u8* dst, u32 src, u32 len) {
 int cardRead(u32 dma, u8* dst, u32 src, u32 len) {
 	//nocashMessage("\narm9 cardRead\n");
 	if (!flagsSet) {
-		if (!FAT_InitFiles(false, 0)) {
+		if (!ce9->ROMinRAM && !FAT_InitFiles(false, 0)) {
 			//nocashMessage("!FAT_InitFiles");
 			#ifndef DLDI
 			while (1);

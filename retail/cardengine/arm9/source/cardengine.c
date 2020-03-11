@@ -671,7 +671,7 @@ int cardReadPDash(u32* cacheStruct, u32 src, u8* dst, u32 len) {
 int cardRead(u32* cacheStruct, u8* dst0, u32 src0, u32 len0) {
 	//nocashMessage("\narm9 cardRead\n");
 	if (!flagsSet) {
-		if (!FAT_InitFiles(false, 0)) {
+		if (!ce9->ROMinRAM && !FAT_InitFiles(false, 0)) {
 			//nocashMessage("!FAT_InitFiles");
 			#ifndef DLDI
 			while (1);

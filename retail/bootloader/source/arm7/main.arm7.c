@@ -1058,7 +1058,7 @@ int arm7_main(void) {
 				errorOutput();
 			}
 		} else if (ceCached) {
-			if (strncmp(romTid, "ACV", 3) == 0				// Castlevania DOS
+			if (moduleParams->sdk_version < 0x2008000
 			 || strncmp(romTid, "A2L", 3) == 0				// Anno 1701: Dawn of Discovery
 			)
 			{
