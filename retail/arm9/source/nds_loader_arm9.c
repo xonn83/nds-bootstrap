@@ -233,7 +233,7 @@ static bool dldiPatchLoader (data_t *binData, u32 binSize, bool clearBSS)
 	return true;
 }
 
-void runNds(u32 cluster, u32 saveCluster, u32 gbaCluster, u32 wideCheatCluster, u32 apPatchCluster, u32 cheatCluster, u32 patchOffsetCacheCluster, u32 fatTableCluster, u32 ramDumpCluster, u32 srParamsCluster, configuration* conf) {
+void runNds(u32 cluster, u32 saveCluster, u32 gbaCluster, u32 wideCheatCluster, u32 apPatchCluster, u32 cheatCluster, u32 patchOffsetCacheCluster, u32 armBinsCluster, u32 fatTableCluster, u32 ramDumpCluster, u32 srParamsCluster, configuration* conf) {
 	nocashMessage("runNds");
 
 	// Load bootloader binary
@@ -276,6 +276,7 @@ void runNds(u32 cluster, u32 saveCluster, u32 gbaCluster, u32 wideCheatCluster, 
 	lc0->cheatFileCluster            = cheatCluster;
 	lc0->cheatSize                   = conf->cheatSize;
 	lc0->patchOffsetCacheFileCluster = patchOffsetCacheCluster;
+	lc0->armBinsCluster              = armBinsCluster;
 	lc0->cacheFatTable               = conf->cacheFatTable;
 	lc0->fatTableFileCluster         = fatTableCluster;
 	lc0->ramDumpCluster              = ramDumpCluster;
@@ -314,13 +315,13 @@ void runNds(u32 cluster, u32 saveCluster, u32 gbaCluster, u32 wideCheatCluster, 
 	// Reset into a passme loop
 	nocashMessage("Reset into a passme loop");
 	REG_EXMEMCNT |= ARM7_OWNS_ROM | ARM7_OWNS_CARD;
-	
+
 	*(vu32*)0x02FFFFFC = 0;
 
 	// Return to passme loop
 	*(vu32*)0x02FFFE04 = (u32)0xE59FF018; // ldr pc, 0x02FFFE24
 	*(vu32*)0x02FFFE24 = (u32)0x02FFFE04;  // Set ARM9 Loop address --> resetARM9(0x02FFFE04);
-	
+
 	// Reset ARM7
 	nocashMessage("resetARM7");
 	resetARM7(0x06020000);	

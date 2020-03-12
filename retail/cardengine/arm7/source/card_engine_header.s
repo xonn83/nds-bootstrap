@@ -16,6 +16,7 @@
 .global moduleParams
 .global fileCluster
 .global saveCluster
+.global armBinsCluster
 .global srParamsCluster
 .global ramDumpCluster
 .global gameOnFlashcard
@@ -47,6 +48,8 @@ intr_network_orig_return:
 moduleParams:
 	.word	0x00000000
 fileCluster:
+	.word	0x00000000
+armBinsCluster:
 	.word	0x00000000
 srParamsCluster:
 	.word	0x00000000

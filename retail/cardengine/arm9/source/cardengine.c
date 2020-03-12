@@ -27,6 +27,10 @@
 #include <nds/ipc.h>
 #include <nds/fifomessages.h>
 #include <nds/memory.h> // tNDSHeader
+// For soft-reset
+#include <stddef.h> // NULL
+#include <nds/timers.h>
+//
 #include "tonccpy.h"
 #include "hex.h"
 #include "nds_header.h"
@@ -182,6 +186,13 @@ static void waitForArm7(void) {
             count++;
         }
     //}
+}
+
+static inline void dmaFill(const void* src, void* dest, u32 size) {
+	DMA_SRC(3)  = (u32)src;
+	DMA_DEST(3) = (u32)dest;
+	DMA_CR(3)   = DMA_COPY_WORDS | DMA_SRC_FIX | (size>>2);
+	while (DMA_CR(3) & DMA_BUSY);
 }
 
 #ifndef DLDI
@@ -953,16 +964,96 @@ void myIrqHandlerIPC(void) {
 }
 
 void reset(u32 param) {
-	if (ce9->consoleModel < 2) {
+	/*if (ce9->consoleModel < 2) {
 		// Make screens white
 		SetBrightness(0, 31);
 		SetBrightness(1, 31);
 		waitFrames(5);	// Wait for DSi screens to stabilize
-	}
-	enterCriticalSection();
+	}*/
 	*(u32*)RESET_PARAM = param;
+
+	volatile u32 arm9_BLANK_RAM = 0;
+
+ 	register int i;
+  
+	// Set shared ram to ARM7
+	WRAM_CR = 0x03;
+	REG_EXMEMCNT = 0xE880;
+
+	REG_IME = 0;
+	REG_IE = 0;
+	REG_IF = ~0;
+
+	arm9_clearCache();
+
+	for (i = 0; i < 16*1024; i += 4) { // First 16KB
+		*(vu32*)(i + 0x00000000) = 0x00000000; // Clear ITCM
+		*(vu32*)(i + 0x00800000) = 0x00000000; // Clear DTCM
+	}
+
+	for (i = 16*1024; i < 32*1024; i += 4) { // Second 16KB
+		*(vu32*)(i + 0x00000000) = 0x00000000; // Clear ITCM
+	}
+
+	*(vu32*)0x00803FFC = 0;  // IRQ_HANDLER ARM9 version
+	*(vu32*)0x00803FF8 = ~0; // VBLANK_INTR_WAIT_FLAGS ARM9 version
+
+	// Clear out ARM9 DMA channels
+	for (i = 0; i < 4; i++) {
+		DMA_CR(i) = 0;
+		DMA_SRC(i) = 0;
+		DMA_DEST(i) = 0;
+		TIMER_CR(i) = 0;
+		TIMER_DATA(i) = 0;
+	}
+
+	// Clear out FIFO
+	REG_IPC_SYNC = 0;
+	REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR;
+	REG_IPC_FIFO_CR = 0;
+
+	VRAM_A_CR = 0x80;
+	VRAM_B_CR = 0x80;
+	VRAM_C_CR = 0x80;
+	VRAM_D_CR = 0x80;
+	VRAM_E_CR = 0x80;
+	VRAM_F_CR = 0x80;
+	VRAM_G_CR = 0x80;
+	VRAM_H_CR = 0x80;
+	VRAM_I_CR = 0x80;
+	BG_PALETTE[0] = 0xFFFF;
+	dmaFill((u16*)&arm9_BLANK_RAM, BG_PALETTE+1, (2*1024)-2);
+	dmaFill((u16*)&arm9_BLANK_RAM, OAM, 2*1024);
+	dmaFill((u16*)&arm9_BLANK_RAM, (u16*)0x04000000, 0x56);  // Clear main display registers
+	dmaFill((u16*)&arm9_BLANK_RAM, (u16*)0x04001000, 0x56);  // Clear sub display registers
+	dmaFill((u16*)&arm9_BLANK_RAM, VRAM_A, 0x20000*3);		// Banks A, B, C
+	dmaFill((u16*)&arm9_BLANK_RAM, VRAM_D, 272*1024);		// Banks D, E, F, G, H, I
+
+	REG_DISPSTAT = 0;
+
+	VRAM_A_CR = 0;
+	VRAM_B_CR = 0;
+	VRAM_C_CR = 0;
+	VRAM_D_CR = 0;
+	VRAM_E_CR = 0;
+	VRAM_F_CR = 0;
+	VRAM_G_CR = 0;
+	VRAM_H_CR = 0;
+	VRAM_I_CR = 0;
+	REG_POWERCNT = 0x820F;
+
 	sharedAddr[3] = 0x52534554;
-	while (1);
+	while(sharedAddr[3] != (vu32)0);
+
+	REG_IME = 0;
+	REG_EXMEMCNT = 0xE880;
+
+	while (REG_VCOUNT != 191);
+	while (REG_VCOUNT == 191);
+
+	// Restart ARM9
+	VoidFn arm9code = (VoidFn)ndsHeader->arm9executeAddress;
+	arm9code();
 }
 
 u32 myIrqEnable(u32 irq) {	

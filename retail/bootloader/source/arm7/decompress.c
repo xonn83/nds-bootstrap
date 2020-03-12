@@ -67,7 +67,7 @@ static const unsigned char* encr_data = (unsigned char*)BLOWFISH_LOCATION;
 	}
 }*/
 
-//static u32 iUncompressedSize = 0;
+u32 iUncompressedSize = 0;
 static u32 iFixedAddr = 0;
 static u32 iFixedData = 0;
 
@@ -102,6 +102,7 @@ static u32 decompressBinary(u8 *aMainMemory, u32 aCodeLength, u32 aMemOffset) {
 	B &= ~0xff000000;
 	ADDR3 = ADDR1 - B;
 	u32 uncompressEnd = ((u32)ADDR1_END) - ((u32)aMainMemory);
+	iUncompressedSize = uncompressEnd;
 
 	while (!(ADDR2 <= ADDR3)) {
 		u32 marku8 = *(--ADDR2 + aMemOffset);

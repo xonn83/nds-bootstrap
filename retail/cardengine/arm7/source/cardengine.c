@@ -27,6 +27,11 @@
 #include <nds/arm7/i2c.h>
 #include <nds/memory.h> // tNDSHeader
 #include <nds/debug.h>
+// For soft-reset
+#include <stddef.h> // NULL
+#include <nds/dma.h>
+#include <nds/timers.h>
+//
 
 #include "tonccpy.h"
 #include "my_sdmmc.h"
@@ -53,6 +58,7 @@ extern int unlockMutex(int* addr);
 extern vu32* volatile cardStruct;
 extern u32 fileCluster;
 extern u32 saveCluster;
+extern u32 armBinsCluster;
 extern u32 srParamsCluster;
 extern u32 ramDumpCluster;
 extern module_params_t* moduleParams;
@@ -94,6 +100,7 @@ static aFile* gbaFile = (aFile*)GBA_FILE_LOCATION;
 #endif
 #endif
 static aFile ramDumpFile;
+static aFile armBinsFile;
 static aFile srParamsFile;
 
 static int saveTimer = 0;
@@ -177,6 +184,7 @@ static void driveInitialize(void) {
 	}
 
 	ramDumpFile = getFileFromCluster(ramDumpCluster);
+	armBinsFile = getFileFromCluster(armBinsCluster);
 	srParamsFile = getFileFromCluster(srParamsCluster);
 
 	//romFile = getFileFromCluster(fileCluster);
@@ -299,6 +307,75 @@ static void cardReadLED(bool on) {
 		}
 	}
 }*/
+
+static void reset(void) {
+	driveInitialize();
+	sdRead = (gameOnFlashcard == false);
+	dmaLed = false;
+
+	register int i;
+	
+	REG_IME = 0;
+
+	for (i = 0; i < 16; i++) {
+		SCHANNEL_CR(i) = 0;
+		SCHANNEL_TIMER(i) = 0;
+		SCHANNEL_SOURCE(i) = 0;
+		SCHANNEL_LENGTH(i) = 0;
+	}
+
+	REG_SOUNDCNT = 0;
+
+	// Clear out ARM7 DMA channels and timers
+	for (i = 0; i < 4; i++) {
+		DMA_CR(i) = 0;
+		DMA_SRC(i) = 0;
+		DMA_DEST(i) = 0;
+		TIMER_CR(i) = 0;
+		TIMER_DATA(i) = 0;
+	}
+
+	// Clear out FIFO
+	REG_IPC_SYNC = 0;
+	REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR;
+	REG_IPC_FIFO_CR = 0;
+
+	toncset((char*)0x02000000, 0, 0x700000);
+	toncset((char*)0x02780000, 0, 0x7FC00);
+	REG_IE = 0;
+	REG_IF = ~0;
+	*(vu32*)(0x04000000 - 4) = 0;  // IRQ_HANDLER ARM7 version
+	*(vu32*)(0x04000000 - 8) = ~0; // VBLANK_INTR_WAIT_FLAGS, ARM7 version
+	REG_POWERCNT = 1;  // Turn off power to stuff
+
+	cardReadLED(true);
+	/*fileWrite((char*)(isSdk5(moduleParams) ? RESET_PARAM_SDK5 : RESET_PARAM), srParamsFile, 0, 0x4, -1);
+	if (consoleModel < 2) {
+		unlaunchSetFilename(false);
+	}
+	tonccpy((u32*)0x02000300, sr_data_srllastran, 0x020);
+	if (*(u32*)(ce7+0x11EF8) != 0) {
+		// Use different SR backend ID
+		*(u32*)(0x02000310) = *(u32*)(ce7+0x11EF8);
+		*(u32*)(0x02000314) = *(u32*)(ce7+0x11EFC);
+		*(u16*)(0x02000306) = swiCRC16(0xFFFF, (void*)0x02000308, 0x18);
+	}
+	i2cWriteRegister(0x4A, 0x70, 0x01);
+	i2cWriteRegister(0x4A, 0x11, 0x01);			// Reboot game */
+	u32 iUncompressedSize = 0;
+	fileRead((char*)&iUncompressedSize, armBinsFile, 0x3FFFF0, 4, -1);
+	fileRead((char*)ndsHeader->arm9destination, armBinsFile, (u32)ndsHeader->arm9destination-0x02000000, (iUncompressedSize!=0 ? iUncompressedSize : ndsHeader->arm9binarySize), 0);
+	fileRead((char*)ndsHeader->arm7destination, armBinsFile, (u32)ndsHeader->arm7destination-0x02000000, ndsHeader->arm7binarySize, 0);
+	cardReadLED(false);
+	sharedAddr[3] = 0;
+
+	while (REG_VCOUNT != 191);
+	while (REG_VCOUNT == 191);
+
+	// Restart ARM7
+	VoidFn arm7code = (VoidFn)ndsHeader->arm7executeAddress;
+	arm7code();
+}
 
 static void log_arm9(void) {
 	#ifdef DEBUG
@@ -791,25 +868,8 @@ void myIrqHandlerVBlank(void) {
 		ramDumpTimer = 0;
 	}
 
-	if (*(vu32*)(CARDENGINE_SHARED_ADDRESS+0xC) == (vu32)0x52534554) {
-		REG_MASTER_VOLUME = 0;
-		int oldIME = enterCriticalSection();
-		driveInitialize();
-		sdRead = (gameOnFlashcard == false);
-		fileWrite((char*)(isSdk5(moduleParams) ? RESET_PARAM_SDK5 : RESET_PARAM), srParamsFile, 0, 0x4, -1);
-		if (consoleModel < 2) {
-			unlaunchSetFilename(false);
-		}
-		tonccpy((u32*)0x02000300, sr_data_srllastran, 0x020);
-		if (*(u32*)(ce7+0x11EF8) != 0) {
-			// Use different SR backend ID
-			*(u32*)(0x02000310) = *(u32*)(ce7+0x11EF8);
-			*(u32*)(0x02000314) = *(u32*)(ce7+0x11EFC);
-			*(u16*)(0x02000306) = swiCRC16(0xFFFF, (void*)0x02000308, 0x18);
-		}
-		i2cWriteRegister(0x4A, 0x70, 0x01);
-		i2cWriteRegister(0x4A, 0x11, 0x01);			// Reboot game
-		leaveCriticalSection(oldIME);
+	if (sharedAddr[3] == (vu32)0x52534554) {
+		reset();
 	}
 
 	if ( 0 == (REG_KEYINPUT & (KEY_L | KEY_R | KEY_START | KEY_SELECT))) {

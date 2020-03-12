@@ -92,6 +92,7 @@ extern u32 apPatchSize;
 extern u32 cheatFileCluster;
 extern u32 cheatSize;
 extern u32 patchOffsetCacheFileCluster;
+extern u32 armBinsCluster;
 extern u32 cacheFatTable;
 extern u32 fatTableFileCluster;
 extern u32 ramDumpCluster;
@@ -120,6 +121,12 @@ static u32 ce7Location = CARDENGINE_ARM7_LOCATION;
 static u32 ce9Location = CARDENGINE_ARM9_LOCATION;
 
 static u32 softResetParams = 0;
+
+static aFile srParamsFile;
+static aFile fatTableFile;
+static aFile patchOffsetCacheFile;
+static aFile armBinsFile;
+static aFile apPatchFile;
 
 static void initMBK(void) {
 	// Give all DSi WRAM to ARM7 at boot
@@ -519,21 +526,6 @@ static bool isROMLoadableInRAM(const tNDSHeader* ndsHeader, const module_params_
 			|| (!dsiModeConfirmed && !isSdk5(moduleParams) && consoleModel == 0 && getRomSizeNoArm9(ndsHeader) <= 0x00800000));
 }
 
-static vu32* storeArm9StartAddress(tNDSHeader* ndsHeader, const module_params_t* moduleParams) {
-	vu32* arm9StartAddress = (vu32*)(isSdk5(moduleParams) ? ARM9_START_ADDRESS_SDK5_LOCATION : ARM9_START_ADDRESS_LOCATION);
-	/*if (isGSDD) {
-		arm9StartAddress = (vu32*)(ARM9_START_ADDRESS_4MB_LOCATION);
-	}*/
-
-	// Store for later
-	*arm9StartAddress = (vu32)ndsHeader->arm9executeAddress;
-	
-	// Exclude the ARM9 start address, so as not to start it
-	ndsHeader->arm9executeAddress = NULL; // 0
-	
-	return arm9StartAddress;
-}
-
 static tNDSHeader* loadHeader(tDSiHeader* dsiHeaderTemp, const module_params_t* moduleParams, int dsiMode, bool isDSiWare) {
 	tNDSHeader* ndsHeader = (tNDSHeader*)(isSdk5(moduleParams) ? NDS_HEADER_SDK5 : NDS_HEADER);
 	/*if (isGSDD) {
@@ -685,14 +677,11 @@ Written by Darkain.
 Modified by Chishm:
  * Removed MultiNDS specific stuff
 --------------------------------------------------------------------------*/
-static void startBinary_ARM7(const vu32* tempArm9StartAddress) {
+static void startBinary_ARM7(void) {
 	REG_IME = 0;
 
 	while (REG_VCOUNT != 191);
 	while (REG_VCOUNT == 191);
-
-	// Copy NDS ARM9 start address into the header, starting ARM9
-	ndsHeader->arm9executeAddress = (void*)*tempArm9StartAddress;
 
 	// Get the ARM9 to boot
 	arm9_stateFlag = ARM9_BOOTBIN;
@@ -811,7 +800,7 @@ int arm7_main(void) {
 
 	if (gameOnFlashcard) sdRead = false;
 
-	aFile srParamsFile = getFileFromCluster(srParamsFileCluster);
+	srParamsFile = getFileFromCluster(srParamsFileCluster);
 	fileRead((char*)&softResetParams, srParamsFile, 0, 0x4, -1);
 	bool softResetParamsFound = (softResetParams != 0xFFFFFFFF);
 	if (softResetParamsFound) {
@@ -837,7 +826,7 @@ int arm7_main(void) {
 	}*/
 
 	// FAT table file
-	aFile fatTableFile = getFileFromCluster(fatTableFileCluster);
+	fatTableFile = getFileFromCluster(fatTableFileCluster);
 	if (cacheFatTable && fatTableFile.firstCluster != CLUSTER_FREE) {
 		fileRead((char*)0x27C0000, fatTableFile, 0, 0x400, -1);
 	}
@@ -926,7 +915,7 @@ int arm7_main(void) {
 	}*/
 
 	// File containing cached patch offsets
-	aFile patchOffsetCacheFile = getFileFromCluster(patchOffsetCacheFileCluster);
+	patchOffsetCacheFile = getFileFromCluster(patchOffsetCacheFileCluster);
 	fileRead((char*)&patchOffsetCache, patchOffsetCacheFile, 0, sizeof(patchOffsetCacheContents), -1);
 	u16 prevPatchOffsetCacheFileVersion = patchOffsetCache.ver;
 
@@ -955,7 +944,6 @@ int arm7_main(void) {
 		}
 		loadIBinary_ARM7(&dsiHeaderTemp, *romFile);
 	}
-	toncset((u32*)0x02800000, 0, 0x500000);	// clear buffered binaries
 
 	nocashMessage("Loading the header...\n");
 
@@ -973,7 +961,6 @@ int arm7_main(void) {
 	}
 	dbg_printf("\n");
 
-	vu32* arm9StartAddress = storeArm9StartAddress(&dsiHeaderTemp.ndshdr, moduleParams);
 	ndsHeader = loadHeader(&dsiHeaderTemp, moduleParams, dsiModeConfirmed, isDSiWare);
 
 	my_readUserSettings(ndsHeader); // Header has to be loaded first
@@ -1067,20 +1054,20 @@ int arm7_main(void) {
 			)
 			{
 				ce9Location = CARDENGINE_ARM9_CACHED_LOCATION;
-				tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x1800);
-				relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x1800);
+				tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x2000);
+				relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x2000);
 			} else
 			ce9Location = (u32)patchHeapPointer(moduleParams, ndsHeader);
 			if(ce9Location) {
-					tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x1800);
-					relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x1800);
+					tonccpy((u32*)ce9Location, (u32*)CARDENGINE_ARM9_RELOC_BUFFERED_LOCATION, 0x2000);
+					relocate_ce9(CARDENGINE_ARM9_LOCATION,ce9Location,0x2000);
 			} else {         
 				ce9Location = CARDENGINE_ARM9_LOCATION;
-				tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x1800);
+				tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x2000);
 			}
 		} else {
 			ce9Location = CARDENGINE_ARM9_LOCATION;
-			tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x1800);
+			tonccpy((u32*)CARDENGINE_ARM9_LOCATION, (u32*)CARDENGINE_ARM9_BUFFERED_LOCATION, 0x2000);
 		}
 
 		patchBinary(ndsHeader);
@@ -1108,6 +1095,7 @@ int arm7_main(void) {
 			ndsHeader,
 			moduleParams,
 			romFile->firstCluster,
+			armBinsCluster,
 			srParamsFileCluster,
 			ramDumpCluster,
 			wideCheatFileCluster,
@@ -1144,6 +1132,17 @@ int arm7_main(void) {
 			consoleModel
 		);
 
+		extern u32 iUncompressedSize;
+		armBinsFile = getFileFromCluster(armBinsCluster);
+		fileRead((char*)0x028FFE00, armBinsFile, 0x3FFE00, 0x170, -1);
+		//fileRead((char*)&iUncompressedSize, armBinsFile, 0x3FFFF0, 4, -1);
+		if (memcmp(ndsHeader, (char*)0x028FFE00, 0x170) != 0) {
+			fileWrite((char*)ndsHeader->arm9destination, armBinsFile, (u32)ndsHeader->arm9destination-0x02000000, (iUncompressedSize!=0 ? iUncompressedSize : ndsHeader->arm9binarySize), -1);
+			fileWrite((char*)ndsHeader->arm7destination, armBinsFile, (u32)ndsHeader->arm7destination-0x02000000, ndsHeader->arm7binarySize, -1);
+			fileWrite((char*)ndsHeader, armBinsFile, 0x3FFE00, 0x170, -1);
+			fileWrite((char*)&iUncompressedSize, armBinsFile, 0x3FFFF0, 4, -1);
+		}
+
 		if (prevPatchOffsetCacheFileVersion != patchOffsetCacheFileVersion || patchOffsetCacheChanged) {
 			fileWrite((char*)&patchOffsetCache, patchOffsetCacheFile, 0, sizeof(patchOffsetCacheContents), -1);
 		}
@@ -1160,7 +1159,7 @@ int arm7_main(void) {
 			}
 		}
 
-		aFile apPatchFile = getFileFromCluster(apPatchFileCluster);
+		apPatchFile = getFileFromCluster(apPatchFileCluster);
 		if (apPatchFile.firstCluster != CLUSTER_FREE && apPatchSize <= 0x40000) {
 			fileRead((char*)IMAGES_LOCATION, apPatchFile, 0, apPatchSize, 0);
 			applyIpsPatch(ndsHeader, (u8*)IMAGES_LOCATION, (*(u8*)(IMAGES_LOCATION+apPatchSize-1) == 0xA9), (isSdk5(moduleParams) || dsiModeConfirmed), consoleModel);
@@ -1208,7 +1207,7 @@ int arm7_main(void) {
 		//fileWrite((char*)dsiHeaderTemp.arm9idestination, ramDumpFile, 0, dsiHeaderTemp.arm9ibinarySize, -1);	// Dump (decrypted?) arm9 binary
 	}
 
-	startBinary_ARM7(arm9StartAddress);
+	startBinary_ARM7();
 
 	return 0;
 }

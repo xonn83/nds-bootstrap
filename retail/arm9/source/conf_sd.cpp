@@ -23,6 +23,7 @@
 static const char* twlmenuResetGamePath = "sdmc:/_nds/TWiLightMenu/resetgame.srldr";
 
 extern std::string patchOffsetCacheFilePath;
+extern std::string armBinsPath;
 extern std::string fatTableFilePath;
 extern std::string wideCheatFilePath;
 extern std::string cheatFilePath;
@@ -320,6 +321,34 @@ int loadFromSD(configuration* conf, const char *bootstrapPath) {
 		FILE* patchOffsetCacheFile = fopen(patchOffsetCacheFilePath.c_str(), "wb");
 		fwrite(buffer, 1, sizeof(buffer), patchOffsetCacheFile);
 		fclose(patchOffsetCacheFile);
+	}
+
+	armBinsPath = "sd:/_nds/nds-bootstrap/armBins.bin";
+	if (conf->ndsPath[0] == 'f' && conf->ndsPath[1] == 'a' && conf->ndsPath[2] == 't') {
+		armBinsPath = "fat:/_nds/nds-bootstrap/ramDump.bin";
+	}
+
+	if (access(armBinsPath.c_str(), F_OK) != 0) {
+		consoleDemoInit();
+		printf("Creating ARM bin backup file.\n");
+		printf("Please wait...\n");
+		/* printf("\n");
+		if (conf->consoleModel >= 2) {
+			printf("If this takes a while, press\n");
+			printf("HOME, then press B.\n");
+		} else {
+			printf("If this takes a while, close\n");
+			printf("the lid, and open it again.\n");
+		} */
+
+		FILE *armBinsFile = fopen(armBinsPath.c_str(), "wb");
+		if (armBinsFile) {
+			fseek(armBinsFile, 0x400000 - 1, SEEK_SET);
+			fputc('\0', armBinsFile);
+			fclose(armBinsFile);
+		}
+
+		consoleClear();
 	}
 
 	fatTableFilePath = "sd:/_nds/nds-bootstrap/fatTable/"+romFilename;
