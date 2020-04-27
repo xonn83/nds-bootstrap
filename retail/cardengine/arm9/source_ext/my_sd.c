@@ -1,9 +1,17 @@
+#include <nds/system.h>
 #include <nds/ipc.h>
 
 #include "my_disc_io.h"
 #include "my_sdmmc.h"
 
 extern vu32* volatile sharedAddr;
+
+static void waitMs(int count) {
+	for (int i = 0; i < count; i++) {
+		while ((REG_VCOUNT % 32) != 31);
+		while ((REG_VCOUNT % 32) == 31);
+	}
+}
 
 /*-----------------------------------------------------------------
 startUp
@@ -50,7 +58,9 @@ bool my_sdio_ReadSector(sec_t sector, void* buffer, u32 startOffset, u32 endOffs
 	sharedAddr[4] = commandRead;
 
     IPC_SendSync(0x4);
-	while (sharedAddr[4] == commandRead);
+	while (sharedAddr[4] == commandRead) {
+		waitMs(1);
+	}
 	return sharedAddr[4] == 0;
 }
 
@@ -75,7 +85,9 @@ bool my_sdio_ReadSectors(sec_t sector, sec_t numSectors, void* buffer, int ndmaS
 	sharedAddr[4] = commandRead;
 
     IPC_SendSync(0x4);
-	while (sharedAddr[4] == commandRead);
+	while (sharedAddr[4] == commandRead) {
+		waitMs(1);
+	}
 	return sharedAddr[4] == 0;
 }
 
