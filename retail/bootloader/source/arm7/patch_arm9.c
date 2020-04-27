@@ -286,7 +286,7 @@ static void patchCardEndReadDma(cardengineArm9* ce9, const tNDSHeader* ndsHeader
 	bool dmaAllowed = false;
     const char* romTid = getRomTid(ndsHeader);
 	static const char list[][4] = {
-        "YGX",  // GTA Chinatown Wars // works
+        /*"YGX",  // GTA Chinatown Wars // works
         "C32",	// Ace Attorney Investigations: Miles Edgeworth // works
         //"A3P",	// Anpanman to Touch de Waku Waku Training // sdk5
         "YBA",  // Bomberman 2 // works
@@ -338,7 +338,7 @@ static void patchCardEndReadDma(cardengineArm9* ce9, const tNDSHeader* ndsHeader
         "YG4",  // Suikoden: Tierkreis // works
         "YUT",  // Ultimate Mortal Kombat
         "A8Q",  // Theme Park // works
-        "AH9",  // Tony Hawk's American Sk8land // works, fixes crashing
+        "AH9",  // Tony Hawk's American Sk8land // works, fixes crashing*/
         "AWA",  // Wario: Master of Disguise // works
 		//"BYY",  // Yu-Gi-Oh! 5Ds World Championship 2011 - Over the Nexus // sdk5
     };
@@ -403,7 +403,7 @@ static bool patchCardSetDma(cardengineArm9* ce9, const tNDSHeader* ndsHeader, co
 	bool dmaAllowed = false;
     const char* romTid = getRomTid(ndsHeader);
 	static const char list[][4] = {
-        "YGX",  // GTA Chinatown Wars // works
+        /*"YGX",  // GTA Chinatown Wars // works
         "C32",	// Ace Attorney Investigations: Miles Edgeworth // works
         //"A3P",	// Anpanman to Touch de Waku Waku Training // sdk5
         "YBA",  // Bomberman 2 // works
@@ -455,7 +455,7 @@ static bool patchCardSetDma(cardengineArm9* ce9, const tNDSHeader* ndsHeader, co
         "YG4",  // Suikoden: Tierkreis // works
         "YUT",  // Ultimate Mortal Kombat
         "A8Q",  // Theme Park // works
-        "AH9",  // Tony Hawk's American Sk8land // works, fixes crashing
+        "AH9",  // Tony Hawk's American Sk8land // works, fixes crashing*/
         "AWA",  // Wario: Master of Disguise // works
 		//"BYY",  // Yu-Gi-Oh! 5Ds World Championship 2011 - Over the Nexus // sdk5
     };
