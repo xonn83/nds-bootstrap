@@ -58,6 +58,7 @@ static bool volumeAdjustActivated = false;*/
 
 //static int cardEgnineCommandMutex = 0;
 //static int saveMutex = 0;
+static int swapTimer = 0;
 
 static const tNDSHeader* ndsHeader = NULL;
 static PERSONAL_DATA* personalData = NULL;
@@ -119,6 +120,18 @@ void myIrqHandlerVBlank(void) {
 	if (sharedAddr[3] == (vu32)0x52534554) {
 		writePowerManagement(PM_CONTROL_REG,PM_SYSTEM_PWR);	// Shut down console
 		sharedAddr[3] = 0;
+	}
+	
+	if ( 0 == (REG_KEYINPUT & (KEY_L | KEY_R | KEY_UP))) {
+		if (swapTimer == 30){
+			int oldIME = enterCriticalSection();
+			swapTimer = 0;
+			IPC_SendSync(0x7);
+			leaveCriticalSection(oldIME);
+		}
+		swapTimer++;
+	}else{
+		swapTimer = 0;
 	}
 
 	/*if ( 0 == (REG_KEYINPUT & (KEY_L | KEY_R | KEY_DOWN | KEY_B))) {
