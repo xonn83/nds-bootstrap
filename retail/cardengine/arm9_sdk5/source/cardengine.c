@@ -922,7 +922,9 @@ void myIrqHandlerIPC(void) {
 #endif
 
 	if (IPC_GetSync() == 0x7){
-		lcdSwap();
+		lcdMainOnTop();
+	}else if (IPC_GetSync() == 0x6){
+		lcdMainOnBottom();
 	}
 
 	if (sharedAddr[4] == 0x57534352) {
