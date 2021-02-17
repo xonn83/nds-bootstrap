@@ -105,6 +105,7 @@ static aFile srParamsFile;
 static int saveTimer = 0;
 
 static int swapTimer = 0;
+static int swapActivated = 0;
 static int returnTimer = 0;
 static int softResetTimer = 0;
 static int ramDumpTimer = 0;
@@ -786,20 +787,12 @@ void myIrqHandlerVBlank(void) {
 	}
 
 	if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_UP))) {
-		if (tryLockMutex(&saveMutex)) {
-			//int oldIME = enterCriticalSection();
-			IPC_SendSync(0x7);
-			//leaveCriticalSection(oldIME);
-		}
-		unlockMutex(&saveMutex);
-	}else if (0 == (REG_KEYINPUT & (KEY_SELECT | KEY_DOWN))){
-		if (tryLockMutex(&saveMutex)) {
-			//int oldIME = enterCriticalSection();
-			IPC_SendSync(0x6);
-			//leaveCriticalSection(oldIME);
-		}
-		unlockMutex(&saveMutex);
+		swapActivated = 0;
+	}else if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_DOWN))) {
+		swapActivated = 1;
 	}
+	
+	if(swapActivated) IPC_SendSync(0x7);
 	
 	if ( 0 == (REG_KEYINPUT & (KEY_L | KEY_R | KEY_DOWN | KEY_B))) {
 		if (tryLockMutex(&saveMutex)) {
