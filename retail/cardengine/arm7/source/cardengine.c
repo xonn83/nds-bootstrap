@@ -787,12 +787,12 @@ void myIrqHandlerVBlank(void) {
 	}
 
 	if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_UP))) {
-		swapActivated = 0;
+		swapActivated = 6; // LCDMainOnTop
 	}else if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_DOWN))) {
-		swapActivated = 1;
+		swapActivated = 7; // LCDMainOnBottom
 	}
 	
-	if(swapActivated) IPC_SendSync(0x7);
+	IPC_SendSync(swapActivated);
 	
 	if ( 0 == (REG_KEYINPUT & (KEY_L | KEY_R | KEY_DOWN | KEY_B))) {
 		if (tryLockMutex(&saveMutex)) {

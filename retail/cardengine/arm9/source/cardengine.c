@@ -1060,10 +1060,8 @@ void myIrqHandlerIPC(void) {
 	}
 #endif
 
-	if (IPC_GetSync() == 0x7){
-		lcdMainOnBottom();
-	}
-	
+	if (IPC_GetSync() == 0x7) lcdMainOnTop();
+	else if (IPC_GetSync() == 0x6) lcdMainOnBottom();
 	
 	if ((sharedAddr[4] == (vu32)0x57534352) && (IPC_GetSync() == 0x8)){
 		enterCriticalSection();
