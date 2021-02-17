@@ -923,7 +923,7 @@ void myIrqHandlerIPC(void) {
 
 	if (IPC_GetSync() == 0x7) lcdMainOnTop();
 	else if (IPC_GetSync() == 0x6) lcdMainOnBottom();
-
+/*
 	if (sharedAddr[4] == 0x57534352) {
 		enterCriticalSection();
 		// Make screens white
@@ -932,6 +932,7 @@ void myIrqHandlerIPC(void) {
 
 		while (1);
 	}
+*/
 }
 
 void reset(u32 param) {
